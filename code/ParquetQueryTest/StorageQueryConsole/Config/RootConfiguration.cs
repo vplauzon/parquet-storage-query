@@ -11,5 +11,9 @@ namespace StorageQueryConsole.Config
         public AuthenticationMode AuthenticationMode { get; set; } = AuthenticationMode.AzCli;
         
         public string? OriginDataFolder { get; set; }
+
+        public Uri? AdxClusterUri{get;set;}
+        
+        public string? AdxDatabase { get;set;}
     }
 }
