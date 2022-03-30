@@ -17,6 +17,8 @@ namespace StorageQueryConsole
             else
             {
                 var config = await LoadConfigAsync(args);
+
+                await SameSizeCopyOrchestration.RunAsync(config);
             }
         }
 

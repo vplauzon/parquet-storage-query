@@ -8,6 +8,8 @@ namespace StorageQueryConsole.Config
 {
     internal class RootConfiguration
     {
-        public string? Endpoint { get; set; }
+        public AuthenticationMode AuthenticationMode { get; set; } = AuthenticationMode.AzCli;
+        
+        public string? OriginDataFolder { get; set; }
     }
 }
