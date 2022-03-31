@@ -1,4 +1,8 @@
-﻿using StorageQueryConsole.Config;
+﻿using Azure.Core;
+using Azure.Identity;
+using Kusto.Data;
+using Kusto.Data.Net.Client;
+using StorageQueryConsole.Config;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -12,13 +16,19 @@ namespace StorageQueryConsole
 
             if (args.Length < 1)
             {
-                Console.Error.WriteLine("You have to call this exec with a parameter pointing to the config file");
+                Console.Error.WriteLine(
+                    "You have to call this exec with a parameter pointing to the config file");
             }
             else
             {
                 var config = await LoadConfigAsync(args);
+                var builder = GetKustoConnectionStringBuilder(
+                    config.AdxClusterUri,
+                    config.AuthenticationMode);
+                var kustoCommandProvider = KustoClientFactory.CreateCslCmAdminProvider(builder);
+                var storageCredential = GetStorageCredentials(config.AuthenticationMode);
 
-                await SameSizeCopyOrchestration.RunAsync(config);
+                await DataPreparationOrchestration.RunAsync(kustoCommandProvider, storageCredential, config);
             }
         }
 
@@ -32,6 +42,43 @@ namespace StorageQueryConsole
             var config = deserializer.Deserialize<RootConfiguration>(configContent);
 
             return config;
+        }
+
+        private static KustoConnectionStringBuilder GetKustoConnectionStringBuilder(
+            Uri adxClusterUri,
+            AuthenticationMode authenticationMode)
+        {
+            var builder = new KustoConnectionStringBuilder(adxClusterUri.ToString());
+
+            switch (authenticationMode)
+            {
+                case AuthenticationMode.AzCli:
+                    return builder.WithAadAzCliAuthentication();
+                case AuthenticationMode.Browser:
+                    return builder.WithAadUserPromptAuthentication();
+
+                default:
+                    throw new NotSupportedException(
+                        $"Authentication mode not supported:  '{authenticationMode}'");
+            }
+        }
+
+        private static TokenCredential GetStorageCredentials(AuthenticationMode authenticationMode)
+        {
+            switch (authenticationMode)
+            {
+                case AuthenticationMode.AzCli:
+                    return new AzureCliCredential();
+                case AuthenticationMode.Browser:
+                    return new InteractiveBrowserCredential(new InteractiveBrowserCredentialOptions
+                    {
+                        TokenCachePersistenceOptions = new TokenCachePersistenceOptions()
+                    });
+
+                default:
+                    throw new NotSupportedException(
+                        $"Authentication mode not supported:  '{authenticationMode}'");
+            }
         }
     }
 }

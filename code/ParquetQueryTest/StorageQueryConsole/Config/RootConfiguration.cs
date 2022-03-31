@@ -11,9 +11,9 @@ namespace StorageQueryConsole.Config
     {
         public AuthenticationMode AuthenticationMode { get; set; } = AuthenticationMode.AzCli;
 
-        public Uri? AdxClusterUri { get; set; }
+        public Uri AdxClusterUri { get; set; } = new Uri("https://Undefined");
 
-        public string? AdxDatabase { get; set; }
+        public string AdxDatabase { get; set; } = "No DB Defined";
 
         public DataPrepConfiguration[] DataPrep { get; set; } = new DataPrepConfiguration[0];
     }

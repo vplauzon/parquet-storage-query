@@ -11,9 +11,12 @@ using System.Collections.Immutable;
 
 namespace StorageQueryConsole
 {
-    internal class SameSizeCopyOrchestration
+    internal class DataPreparationOrchestration
     {
-        internal static async Task RunAsync(RootConfiguration config)
+        internal static async Task RunAsync(
+            ICslAdminProvider kustoCommandProvider,
+            TokenCredential storageCredential,
+            RootConfiguration config)
         {
             if (config.AdxClusterUri != null && config.AdxDatabase != null)
             {
@@ -25,7 +28,8 @@ namespace StorageQueryConsole
                     foreach (var dataPrepNode in config.DataPrep)
                     {
                         await RunAsync(
-                            config.AuthenticationMode,
+                            kustoCommandProvider,
+                            storageCredential,
                             config.AdxClusterUri,
                             config.AdxDatabase,
                             dataPrepNode);
@@ -35,15 +39,14 @@ namespace StorageQueryConsole
         }
 
         private static async Task RunAsync(
-            AuthenticationMode authenticationMode,
+            ICslAdminProvider kustoCommandProvider,
+            TokenCredential storageCredential,
             Uri adxClusterUri,
             string adxDatabase,
             DataPrepConfiguration dataPrepNode)
         {
-            var builder = GetKustoConnectionStringBuilder(adxClusterUri, authenticationMode);
-            var kustoCommandProvider = KustoClientFactory.CreateCslCmAdminProvider(builder);
             var (containerName, blobItems) =
-                await GetBlobItemsAsync(authenticationMode, dataPrepNode.OriginDataFolderUri);
+                await GetBlobItemsAsync(storageCredential, dataPrepNode.OriginDataFolderUri);
 
             Console.WriteLine($"From {dataPrepNode.OriginDataFolderUri}:  {blobItems.Count} blobs");
 
@@ -89,56 +92,18 @@ namespace StorageQueryConsole
         }
 
         private static async Task<(string containerName, IImmutableList<BlobItem> items)> GetBlobItemsAsync(
-            AuthenticationMode authenticationMode,
+            TokenCredential storageCredential,
             Uri originDataFolderUri)
         {
             var serviceUri = new Uri($"https://{originDataFolderUri.Host}");
             var pathParts = originDataFolderUri.LocalPath.Split('/').Skip(1);
             var containerName = pathParts.First();
             var containerPath = string.Join('/', pathParts.Skip(1));
-            var credential = GetStorageCredentials(authenticationMode);
-            var blobClient = new BlobServiceClient(serviceUri, credential);
+            var blobClient = new BlobServiceClient(serviceUri, storageCredential);
             var containerClient = blobClient.GetBlobContainerClient(containerName);
             var blobItems = await containerClient.GetBlobsAsync(prefix: containerPath).ToListAsync();
 
             return (containerName, blobItems);
-        }
-
-        private static KustoConnectionStringBuilder GetKustoConnectionStringBuilder(
-            Uri adxClusterUri,
-            AuthenticationMode authenticationMode)
-        {
-            var builder = new KustoConnectionStringBuilder(adxClusterUri.ToString());
-
-            switch (authenticationMode)
-            {
-                case AuthenticationMode.AzCli:
-                    return builder.WithAadAzCliAuthentication();
-                case AuthenticationMode.Browser:
-                    return builder.WithAadUserPromptAuthentication();
-
-                default:
-                    throw new NotSupportedException(
-                        $"Authentication mode not supported:  '{authenticationMode}'");
-            }
-        }
-
-        private static TokenCredential GetStorageCredentials(AuthenticationMode authenticationMode)
-        {
-            switch (authenticationMode)
-            {
-                case AuthenticationMode.AzCli:
-                    return new AzureCliCredential();
-                case AuthenticationMode.Browser:
-                    return new InteractiveBrowserCredential(new InteractiveBrowserCredentialOptions
-                    {
-                        TokenCachePersistenceOptions = new TokenCachePersistenceOptions()
-                    });
-
-                default:
-                    throw new NotSupportedException(
-                        $"Authentication mode not supported:  '{authenticationMode}'");
-            }
         }
     }
 }
