@@ -44,46 +44,45 @@ namespace StorageQueryConsole
                 await GetBlobItemsAsync(authenticationMode, originDataFolderUri);
 
             Console.WriteLine($"{blobItems.Count} blobs");
-            await CreateStagingTableAsync(adxDatabase, kustoCommandProvider);
-            Console.WriteLine($"Staging table created");
 
             foreach (var item in blobItems)
             {
                 var originPath = $"https://{originDataFolderUri.Host}/{containerName}/{item.Name}";
                 var destinationPath =
-                    $"{destinationDataFolderUri}/{item.Name.Replace("csv.gz", "parquet")}";
-                var tag = $"\"{item.Name}\"";
+                    $"{destinationDataFolderUri}/{item.Name.Replace(".csv.gz", string.Empty)}";
 
-                await kustoCommandProvider.ExecuteControlCommandAsync(
+                await LoadCsvsIntoParquetAsync(
+                    kustoCommandProvider,
                     adxDatabase,
-                    @$".execute database script <|
-                    .append Staging with (tags='[{tag}]') <|
-                    externaldata(Timestamp: datetime, Instance: string, Node: string, Level: string, Component: string, EventId: guid, Detail: string)
-                    [
-                      h@'{originPath};impersonate'
-                    ]
-                    with(format = 'csv')");
+                    originPath,
+                    destinationPath);
+                Console.WriteLine($"Wrote '{destinationPath}'");
             }
         }
 
-        private static async Task CreateStagingTableAsync(
+        private static async Task LoadCsvsIntoParquetAsync(
+            ICslAdminProvider kustoCommandProvider,
             string adxDatabase,
-            ICslAdminProvider kustoCommandProvider)
+            string originPath,
+            string destinationPath)
         {
             await kustoCommandProvider.ExecuteControlCommandAsync(
                 adxDatabase,
-                @".execute database script <|
-                .create-merge table Staging(Timestamp:datetime,Instance:string,Node:string,Level:string,Component:string,EventId:guid,Detail:string)
-
-                .alter table Staging policy merge
-                ```
-                {
-                  'AllowRebuild': false,
-                  'AllowMerge': false
-                }
-                ```
-
-                .clear table Staging data;");
+                @$".export compressed to parquet (
+                        h@'{destinationPath};impersonate'
+                      ) with(
+                        sizeLimit = 1073741824,
+                        namePrefix = '1',
+                        compressionType = 'snappy',
+                        distributed = false,
+                        useNativeParquetWriter = true
+                      )
+                      <|
+                      externaldata(Timestamp: datetime, Instance: string, Node: string, Level: string, Component: string, EventId: guid, Detail: string)
+                      [
+                        h@'{originPath};impersonate'
+                      ]
+                      with(format = 'csv')");
         }
 
         private static async Task<(string containerName, IImmutableList<BlobItem> items)> GetBlobItemsAsync(
