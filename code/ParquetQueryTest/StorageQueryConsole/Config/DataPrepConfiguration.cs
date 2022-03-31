@@ -11,5 +11,7 @@ namespace StorageQueryConsole.Config
         public Uri OriginDataFolderUri { get; set; } = new Uri("https://Undefined");
 
         public Uri DestinationDataFolderUri { get; set; } = new Uri("https://Undefined");
+
+        public int? BlobSizeTarget { get; set; }
     }
 }

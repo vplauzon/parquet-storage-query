@@ -13,6 +13,21 @@ namespace StorageQueryConsole
 {
     internal class DataPreparationOrchestration
     {
+        #region Inner Types
+        private class PathMapping
+        {
+            public PathMapping(IEnumerable<string> originalPaths, string destinationPath)
+            {
+                OriginalPaths = originalPaths.ToImmutableArray();
+                DestinationPath = destinationPath;
+            }
+
+            public IImmutableList<string> OriginalPaths { get; }
+
+            public string DestinationPath { get; }
+        }
+        #endregion
+
         internal static async Task RunAsync(
             ICslAdminProvider kustoCommandProvider,
             TokenCredential storageCredential,
@@ -45,38 +60,69 @@ namespace StorageQueryConsole
             string adxDatabase,
             DataPrepConfiguration dataPrepNode)
         {
-            var (containerName, blobItems) =
-                await GetBlobItemsAsync(storageCredential, dataPrepNode.OriginDataFolderUri);
+            var pathMappings = await GetPathMappingsAsync(
+                storageCredential,
+                dataPrepNode.OriginDataFolderUri,
+                dataPrepNode.DestinationDataFolderUri,
+                dataPrepNode.BlobSizeTarget);
+            var blobCount = pathMappings.Sum(m => m.OriginalPaths.Count);
 
-            Console.WriteLine($"From {dataPrepNode.OriginDataFolderUri}:  {blobItems.Count} blobs");
+            Console.WriteLine($"From {dataPrepNode.OriginDataFolderUri}:  {blobCount} blobs");
+            Console.WriteLine(
+                $"To {dataPrepNode.DestinationDataFolderUri}:  {pathMappings.Count} blobs");
 
-            foreach (var item in blobItems)
+            foreach (var mapping in pathMappings)
             {
-                var originPath =
-                    $"https://{dataPrepNode.OriginDataFolderUri.Host}/{containerName}/{item.Name}";
-                var destinationPath = $"{dataPrepNode.DestinationDataFolderUri}/"
-                    + $"{item.Name.Replace(".csv.gz", string.Empty)}";
-
                 await LoadCsvsIntoParquetAsync(
                     kustoCommandProvider,
                     adxDatabase,
-                    originPath,
-                    destinationPath);
-                Console.WriteLine($"Wrote '{destinationPath}'");
+                    mapping.OriginalPaths,
+                    mapping.DestinationPath);
+                Console.WriteLine($"Wrote '{mapping.DestinationPath}'");
+            }
+        }
+
+        private static async Task<IImmutableList<PathMapping>> GetPathMappingsAsync(
+            TokenCredential storageCredential,
+            Uri originDataFolderUri,
+            Uri destinationDataFolderUri,
+            int? blobSizeTarget)
+        {
+            var originServiceUri = new Uri($"https://{originDataFolderUri.Host}");
+            var pathParts = originDataFolderUri.LocalPath.Split('/').Skip(1);
+            var originContainerName = pathParts.First();
+            var containerPath = string.Join('/', pathParts.Skip(1));
+            var blobClient = new BlobServiceClient(originServiceUri, storageCredential);
+            var containerClient = blobClient.GetBlobContainerClient(originContainerName);
+            var blobItems = await containerClient.GetBlobsAsync(prefix: containerPath).ToListAsync();
+
+            if (blobSizeTarget == null)
+            {
+                var mappings = blobItems
+                    .Select(i => new PathMapping(
+                        new[] { $"{originServiceUri}/{originContainerName}/{i.Name}" },
+                        $"{destinationDataFolderUri}/"
+                        + $"{i.Name.Replace(".csv.gz", string.Empty)}"));
+
+                return mappings.ToImmutableArray();
+            }
+            else
+            {
+                throw new NotImplementedException();
             }
         }
 
         private static async Task LoadCsvsIntoParquetAsync(
             ICslAdminProvider kustoCommandProvider,
             string adxDatabase,
-            string originPath,
+            IImmutableList<string> originalPaths,
             string destinationPath)
         {
-            await kustoCommandProvider.ExecuteControlCommandAsync(
-                adxDatabase,
-                @$".export compressed to parquet (
-                        h@'{destinationPath};impersonate'
-                      ) with(
+            var originalPathsText =
+                string.Join(", ", originalPaths.Select(p => $"h@'{p};impersonate'"));
+            var commandText = @$".export compressed to parquet (
+                    h@'{destinationPath};impersonate'
+                ) with(
                         sizeLimit = 1073741824,
                         namePrefix = '1',
                         compressionType = 'snappy',
@@ -85,25 +131,12 @@ namespace StorageQueryConsole
                       )
                       <|
                       externaldata(Timestamp: datetime, Instance: string, Node: string, Level: string, Component: string, EventId: guid, Detail: string)
-                      [
-                        h@'{originPath};impersonate'
-                      ]
-                      with(format = 'csv')");
-        }
+                      [{originalPathsText}]
+                      with(format = 'csv')";
 
-        private static async Task<(string containerName, IImmutableList<BlobItem> items)> GetBlobItemsAsync(
-            TokenCredential storageCredential,
-            Uri originDataFolderUri)
-        {
-            var serviceUri = new Uri($"https://{originDataFolderUri.Host}");
-            var pathParts = originDataFolderUri.LocalPath.Split('/').Skip(1);
-            var containerName = pathParts.First();
-            var containerPath = string.Join('/', pathParts.Skip(1));
-            var blobClient = new BlobServiceClient(serviceUri, storageCredential);
-            var containerClient = blobClient.GetBlobContainerClient(containerName);
-            var blobItems = await containerClient.GetBlobsAsync(prefix: containerPath).ToListAsync();
-
-            return (containerName, blobItems);
+            await kustoCommandProvider.ExecuteControlCommandAsync(
+                adxDatabase,
+                commandText);
         }
     }
 }
