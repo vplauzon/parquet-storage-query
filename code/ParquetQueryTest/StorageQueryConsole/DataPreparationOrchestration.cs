@@ -108,7 +108,36 @@ namespace StorageQueryConsole
             }
             else
             {
-                throw new NotImplementedException();
+                var mappingsBuilder = ImmutableArray<PathMapping>.Empty.ToBuilder();
+                var currentOriginalPaths = new List<string>();
+                var currentTotalBlobSize = (long)0;
+                var currentCounter = 0;
+
+                foreach (var item in blobItems)
+                {
+                    if (currentTotalBlobSize + item.Properties.ContentLength
+                        > blobSizeTarget * 1024 * 1024)
+                    {
+                        mappingsBuilder.Add(new PathMapping(
+                            currentOriginalPaths,
+                            $"{destinationDataFolderUri}/{currentCounter}"));
+                        currentOriginalPaths.Clear();
+                        currentTotalBlobSize = 0;
+                        ++currentCounter;
+                    }
+                    currentOriginalPaths.Add(
+                        $"{originServiceUri}/{originContainerName}/{item.Name}");
+                    currentTotalBlobSize += item.Properties.ContentLength ?? 0;
+                }
+
+                if (currentOriginalPaths.Any())
+                {
+                    mappingsBuilder.Add(new PathMapping(
+                        currentOriginalPaths,
+                        $"{destinationDataFolderUri}/{currentCounter}"));
+                }
+
+                return mappingsBuilder.ToImmutableArray();
             }
         }
 
