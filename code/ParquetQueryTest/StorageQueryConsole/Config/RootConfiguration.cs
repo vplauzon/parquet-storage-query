@@ -10,12 +10,11 @@ namespace StorageQueryConsole.Config
     internal class RootConfiguration
     {
         public AuthenticationMode AuthenticationMode { get; set; } = AuthenticationMode.AzCli;
-        
-        public Uri? AdxClusterUri{get;set;}
-        
-        public string? AdxDatabase { get;set;}
 
-        public IImmutableList<DataPrepConfiguration> DataPrep { get; set; }
-            = ImmutableArray<DataPrepConfiguration>.Empty;
+        public Uri? AdxClusterUri { get; set; }
+
+        public string? AdxDatabase { get; set; }
+
+        public DataPrepConfiguration[] DataPrep { get; set; } = new DataPrepConfiguration[0];
     }
 }

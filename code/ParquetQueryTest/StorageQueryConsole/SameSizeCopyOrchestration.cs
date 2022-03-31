@@ -17,13 +17,19 @@ namespace StorageQueryConsole
         {
             if (config.AdxClusterUri != null && config.AdxDatabase != null)
             {
-                foreach (var dataPrepNode in config.DataPrep)
+                if (config.DataPrep.Any())
                 {
-                    await RunAsync(
-                        config.AuthenticationMode,
-                        config.AdxClusterUri,
-                        config.AdxDatabase,
-                        dataPrepNode);
+                    Console.WriteLine("Data preparation...");
+                    Console.WriteLine();
+
+                    foreach (var dataPrepNode in config.DataPrep)
+                    {
+                        await RunAsync(
+                            config.AuthenticationMode,
+                            config.AdxClusterUri,
+                            config.AdxDatabase,
+                            dataPrepNode);
+                    }
                 }
             }
         }
@@ -34,14 +40,12 @@ namespace StorageQueryConsole
             string adxDatabase,
             DataPrepConfiguration dataPrepNode)
         {
-            Console.WriteLine("Copy 'same size'");
-
             var builder = GetKustoConnectionStringBuilder(adxClusterUri, authenticationMode);
             var kustoCommandProvider = KustoClientFactory.CreateCslCmAdminProvider(builder);
             var (containerName, blobItems) =
                 await GetBlobItemsAsync(authenticationMode, dataPrepNode.OriginDataFolderUri);
 
-            Console.WriteLine($"{blobItems.Count} blobs");
+            Console.WriteLine($"From {dataPrepNode.OriginDataFolderUri}:  {blobItems.Count} blobs");
 
             foreach (var item in blobItems)
             {
