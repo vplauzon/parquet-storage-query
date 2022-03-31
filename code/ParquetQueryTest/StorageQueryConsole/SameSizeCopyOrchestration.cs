@@ -15,41 +15,40 @@ namespace StorageQueryConsole
     {
         internal static async Task RunAsync(RootConfiguration config)
         {
-            if (config.OriginDataFolderUri != null
-                && config.SameSizeDataFolderUri != null
-                && config.AdxClusterUri != null
-                && config.AdxDatabase != null)
+            if (config.AdxClusterUri != null && config.AdxDatabase != null)
             {
-                await RunAsync(
-                    config.AuthenticationMode,
-                    config.OriginDataFolderUri,
-                    config.SameSizeDataFolderUri,
-                    config.AdxClusterUri,
-                    config.AdxDatabase);
+                foreach (var dataPrepNode in config.DataPrep)
+                {
+                    await RunAsync(
+                        config.AuthenticationMode,
+                        config.AdxClusterUri,
+                        config.AdxDatabase,
+                        dataPrepNode);
+                }
             }
         }
 
         private static async Task RunAsync(
             AuthenticationMode authenticationMode,
-            Uri originDataFolderUri,
-            Uri destinationDataFolderUri,
             Uri adxClusterUri,
-            string adxDatabase)
+            string adxDatabase,
+            DataPrepConfiguration dataPrepNode)
         {
             Console.WriteLine("Copy 'same size'");
 
             var builder = GetKustoConnectionStringBuilder(adxClusterUri, authenticationMode);
             var kustoCommandProvider = KustoClientFactory.CreateCslCmAdminProvider(builder);
             var (containerName, blobItems) =
-                await GetBlobItemsAsync(authenticationMode, originDataFolderUri);
+                await GetBlobItemsAsync(authenticationMode, dataPrepNode.OriginDataFolderUri);
 
             Console.WriteLine($"{blobItems.Count} blobs");
 
             foreach (var item in blobItems)
             {
-                var originPath = $"https://{originDataFolderUri.Host}/{containerName}/{item.Name}";
-                var destinationPath =
-                    $"{destinationDataFolderUri}/{item.Name.Replace(".csv.gz", string.Empty)}";
+                var originPath =
+                    $"https://{dataPrepNode.OriginDataFolderUri.Host}/{containerName}/{item.Name}";
+                var destinationPath = $"{dataPrepNode.DestinationDataFolderUri}/"
+                    + $"{item.Name.Replace(".csv.gz", string.Empty)}";
 
                 await LoadCsvsIntoParquetAsync(
                     kustoCommandProvider,
