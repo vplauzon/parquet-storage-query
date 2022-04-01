@@ -5,6 +5,7 @@ using Azure.Storage.Blobs.Models;
 using Kusto.Cloud.Platform.Utils;
 using Kusto.Data;
 using Kusto.Data.Common;
+using Kusto.Data.Exceptions;
 using Kusto.Data.Net.Client;
 using StorageQueryConsole.Config;
 using System.Collections.Immutable;
@@ -80,6 +81,7 @@ namespace StorageQueryConsole
                     mapping.DestinationPath);
                 Console.WriteLine($"Wrote '{mapping.DestinationPath}'");
             }
+            Console.WriteLine();
         }
 
         private static async Task<IImmutableList<PathMapping>> GetPathMappingsAsync(
@@ -163,9 +165,32 @@ namespace StorageQueryConsole
                       [{originalPathsText}]
                       with(format = 'csv')";
 
-            await kustoCommandProvider.ExecuteControlCommandAsync(
-                adxDatabase,
-                commandText);
+            await ExecuteControlCommandAsync(kustoCommandProvider, adxDatabase, commandText);
+        }
+
+        private static async Task ExecuteControlCommandAsync(
+            ICslAdminProvider kustoCommandProvider,
+            string adxDatabase,
+            string commandText)
+        {
+            try
+            {
+                await kustoCommandProvider.ExecuteControlCommandAsync(
+                    adxDatabase,
+                    commandText);
+            }
+            catch (KustoException ex)
+            {
+                Console.WriteLine($"Exception in command exec:  {ex.Message}");
+
+                if (!ex.IsPermanent)
+                {
+                    await ExecuteControlCommandAsync(
+                        kustoCommandProvider,
+                        adxDatabase,
+                        commandText);
+                }
+            }
         }
     }
 }
