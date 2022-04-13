@@ -29,6 +29,7 @@ namespace StorageQueryConsole
                 var storageCredential = GetStorageCredentials(config.AuthenticationMode);
 
                 await DataPreparationOrchestration.RunAsync(kustoCommandProvider, storageCredential, config);
+                await QueryOrchestration.RunAsync(kustoCommandProvider, storageCredential, config);
             }
         }
 

@@ -16,5 +16,7 @@ namespace StorageQueryConsole.Config
         public string AdxDatabase { get; set; } = "No DB Defined";
 
         public DataPrepConfiguration[] DataPrep { get; set; } = new DataPrepConfiguration[0];
+        
+        public QueryConfiguration[] Queries { get; set; } = new QueryConfiguration[0];
     }
 }

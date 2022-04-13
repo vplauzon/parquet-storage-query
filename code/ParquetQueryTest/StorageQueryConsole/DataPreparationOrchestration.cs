@@ -36,7 +36,7 @@ namespace StorageQueryConsole
         {
             if (config.AdxClusterUri != null && config.AdxDatabase != null)
             {
-                if (config.DataPrep.Any())
+                if (config.DataPrep != null && config.DataPrep.Any())
                 {
                     Console.WriteLine("Data preparation...");
                     Console.WriteLine();
