@@ -18,11 +18,25 @@ namespace StorageQueryConsole
                     Console.WriteLine("Queries...");
                     Console.WriteLine();
 
-                    foreach (var query in config.Queries)
+                    foreach (var queryNode in config.Queries)
                     {
+                        await RunAsync(
+                            storageCredential,
+                            config.AdxClusterUri,
+                            config.AdxDatabase,
+                            queryNode);
                     }
                 }
             }
+        }
+
+        private static Task RunAsync(
+            TokenCredential storageCredential,
+            Uri adxClusterUri,
+            string adxDatabase,
+            QueryConfiguration queryNode)
+        {
+            throw new NotImplementedException();
         }
     }
 }
