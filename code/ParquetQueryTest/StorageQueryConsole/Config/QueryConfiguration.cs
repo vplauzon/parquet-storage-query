@@ -10,6 +10,6 @@ namespace StorageQueryConsole.Config
     {
         public Uri DataFolderUri { get; set; } = new Uri("https://Undefined");
 
-        public QueryType QueryType { get; set; } = QueryType.Filter;
+        public QueryType QueryType { get; set; } = QueryType.TotalCount;
     }
 }

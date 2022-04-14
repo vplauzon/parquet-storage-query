@@ -2,6 +2,9 @@
 {
     public enum QueryType
     {
-        Filter
+        PointFilter,
+        MaxBy,
+        FilterCount,
+        TotalCount
     }
 }

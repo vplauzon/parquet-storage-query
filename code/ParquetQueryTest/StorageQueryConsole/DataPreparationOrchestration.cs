@@ -90,19 +90,16 @@ namespace StorageQueryConsole
             Uri destinationDataFolderUri,
             int? blobSizeTarget)
         {
-            var originServiceUri = new Uri($"https://{originDataFolderUri.Host}");
-            var pathParts = originDataFolderUri.LocalPath.Split('/').Skip(1);
-            var originContainerName = pathParts.First();
-            var containerPath = string.Join('/', pathParts.Skip(1));
-            var blobClient = new BlobServiceClient(originServiceUri, storageCredential);
-            var containerClient = blobClient.GetBlobContainerClient(originContainerName);
-            var blobItems = await containerClient.GetBlobsAsync(prefix: containerPath).ToListAsync();
+            var blobs = await BlobCollection.LoadBlobsAsync(
+                storageCredential,
+                originDataFolderUri);
 
             if (blobSizeTarget == null)
             {
-                var mappings = blobItems
+                var mappings = blobs
+                    .BlobItems
                     .Select(i => new PathMapping(
-                        new[] { $"{originServiceUri}/{originContainerName}/{i.Name}" },
+                        new[] { $"{blobs.BlobContainerClient.Uri}/{i.Name}" },
                         $"{destinationDataFolderUri}/"
                         + $"{i.Name.Replace(".csv.gz", string.Empty)}"));
 
@@ -115,7 +112,7 @@ namespace StorageQueryConsole
                 var currentTotalBlobSize = (long)0;
                 var currentCounter = 0;
 
-                foreach (var item in blobItems)
+                foreach (var item in blobs.BlobItems)
                 {
                     if (currentTotalBlobSize + item.Properties.ContentLength
                         > blobSizeTarget * 1024 * 1024)
@@ -127,8 +124,7 @@ namespace StorageQueryConsole
                         currentTotalBlobSize = 0;
                         ++currentCounter;
                     }
-                    currentOriginalPaths.Add(
-                        $"{originServiceUri}/{originContainerName}/{item.Name}");
+                    currentOriginalPaths.Add($"{blobs.BlobContainerClient.Uri}/{item.Name}");
                     currentTotalBlobSize += item.Properties.ContentLength ?? 0;
                 }
 
