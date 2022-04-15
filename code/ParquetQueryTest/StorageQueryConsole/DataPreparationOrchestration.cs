@@ -74,9 +74,10 @@ namespace StorageQueryConsole
 
             foreach (var mapping in pathMappings)
             {
-                await LoadCsvsIntoParquetAsync(
+                await LoadIntoParquetAsync(
                     kustoCommandProvider,
                     adxDatabase,
+                    dataPrepNode.IsOriginParquet,
                     mapping.OriginalPaths,
                     mapping.DestinationPath);
                 Console.WriteLine($"Wrote '{mapping.DestinationPath}'");
@@ -93,11 +94,13 @@ namespace StorageQueryConsole
             var blobs = await BlobCollection.LoadBlobsAsync(
                 storageCredential,
                 originDataFolderUri);
+            var actualBlobs = blobs
+                .BlobItems
+                .Where(i => i.Properties.ContentLength != 0);
 
             if (blobSizeTarget == null)
             {
-                var mappings = blobs
-                    .BlobItems
+                var mappings = actualBlobs
                     .Select(i => new PathMapping(
                         new[] { $"{blobs.BlobContainerClient.Uri}/{i.Name}" },
                         $"{destinationDataFolderUri}/"
@@ -112,7 +115,7 @@ namespace StorageQueryConsole
                 var currentTotalBlobSize = (long)0;
                 var currentCounter = 0;
 
-                foreach (var item in blobs.BlobItems)
+                foreach (var item in actualBlobs)
                 {
                     if (currentTotalBlobSize + item.Properties.ContentLength
                         > blobSizeTarget * 1024 * 1024)
@@ -139,14 +142,16 @@ namespace StorageQueryConsole
             }
         }
 
-        private static async Task LoadCsvsIntoParquetAsync(
+        private static async Task LoadIntoParquetAsync(
             ICslAdminProvider kustoCommandProvider,
             string adxDatabase,
+            bool isOriginParquet,
             IImmutableList<string> originalPaths,
             string destinationPath)
         {
             var originalPathsText =
                 string.Join(", ", originalPaths.Select(p => $"h@'{p};impersonate'"));
+            var format = isOriginParquet ? "parquet" : "csv";
             var commandText = @$".export compressed to parquet (
                     h@'{destinationPath};impersonate'
                 ) with(
@@ -159,7 +164,7 @@ namespace StorageQueryConsole
                       <|
                       externaldata(Timestamp: datetime, Instance: string, Node: string, Level: string, Component: string, EventId: guid, Detail: string)
                       [{originalPathsText}]
-                      with(format = 'csv')";
+                      with(format = '{format}')";
 
             await ExecuteControlCommandAsync(kustoCommandProvider, adxDatabase, commandText);
         }

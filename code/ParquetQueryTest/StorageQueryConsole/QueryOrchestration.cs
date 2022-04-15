@@ -74,7 +74,7 @@ namespace StorageQueryConsole
             var options = new BlobQueryOptions
             {
                 InputTextConfiguration = new BlobQueryParquetTextOptions(),
-                OutputTextConfiguration = new BlobQueryCsvTextOptions() { HasHeaders = true }
+                OutputTextConfiguration = new BlobQueryParquetTextOptions()
             };
 
             options.ErrorHandler += (BlobQueryError err) =>
