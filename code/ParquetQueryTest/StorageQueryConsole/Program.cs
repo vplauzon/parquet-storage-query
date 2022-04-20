@@ -3,6 +3,7 @@ using Azure.Identity;
 using Kusto.Data;
 using Kusto.Data.Net.Client;
 using StorageQueryConsole.Config;
+using System.Net;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -12,7 +13,7 @@ namespace StorageQueryConsole
     {
         public static async Task Main(string[] args)
         {
-            //ServicePointManager.DefaultConnectionLimit = 25;
+            ServicePointManager.DefaultConnectionLimit = 2000;
 
             if (args.Length < 1)
             {
