@@ -73,8 +73,9 @@ namespace StorageQueryConsole
             var firstBlobClient = nonEmptyBlobClients.First();
             var options = new BlobQueryOptions
             {
-                InputTextConfiguration = new BlobQueryParquetTextOptions(),
-                OutputTextConfiguration = new BlobQueryParquetTextOptions()
+                InputTextConfiguration = new BlobQueryParquetTextOptions()
+                //,
+                //OutputTextConfiguration = new BlobQueryParquetTextOptions()
             };
 
             options.ErrorHandler += (BlobQueryError err) =>
