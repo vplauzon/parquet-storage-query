@@ -3,6 +3,7 @@
     public enum QueryType
     {
         PointFilter,
+        TimeFilter,
         MaxBy,
         FilterCount,
         TotalCount

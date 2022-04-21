@@ -14,6 +14,7 @@ namespace StorageQueryConsole
         public static async Task Main(string[] args)
         {
             ServicePointManager.DefaultConnectionLimit = 2000;
+            //ServicePointManager.SetTcpKeepAlive(false, 0, 0);
 
             if (args.Length < 1)
             {

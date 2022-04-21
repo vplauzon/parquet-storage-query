@@ -87,20 +87,52 @@ namespace StorageQueryConsole
             string adxDatabase,
             Uri dataFolderUri)
         {
-            var counts = await QueryStorageAsync<CountResult>(
+            await QueryBothSystemsAsync<CountResult>(
+                storageCredential,
+                commandProvider,
+                queryProvider,
+                adxDatabase,
+                dataFolderUri,
+                "SELECT COUNT(1) FROM BlobStorage",
+                results =>
+                {
+                    var count = results.SelectMany(i => i).Select(r => r.Count).Sum();
+
+                    Console.WriteLine($"Count by storage query:  {count}");
+                },
+                "summarize count()");
+        }
+
+        private static async Task QueryBothSystemsAsync<RESULT>(
+            TokenCredential storageCredential,
+            ICslAdminProvider commandProvider,
+            ICslQueryProvider queryProvider,
+            string adxDatabase,
+            Uri dataFolderUri,
+            string storageQueryText,
+            Action<IEnumerable<IEnumerable<RESULT>>> showResultAction,
+            string adxQueryText)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"Testing on storage {dataFolderUri}");
+            Console.WriteLine($"Storage query:  {storageQueryText}");
+
+            var storageResults = await QueryStorageAsync<RESULT>(
                 storageCredential,
                 dataFolderUri,
-                "SELECT COUNT(1) FROM BlobStorage");
-            var count = counts.SelectMany(i => i).Select(r => r.Count).Sum();
+                storageQueryText);
 
-            Console.WriteLine($"Count by storage query:  {count}");
+            showResultAction(storageResults);
+
+            Console.WriteLine("Testing on ADX");
+            Console.WriteLine($"ADX query:  {adxQueryText}");
 
             await QueryAdxAsync(
                 commandProvider,
                 queryProvider,
                 adxDatabase,
                 dataFolderUri,
-                "summarize count()");
+                adxQueryText);
         }
 
         private static async Task QueryAdxAsync(
@@ -111,11 +143,11 @@ namespace StorageQueryConsole
             string queryText)
         {
             var watch = new Stopwatch();
-
             var externalTableName = "ParquetTable";
+
             await commandProvider.ExecuteControlCommandAsync(
                 adxDatabase,
-                ".drop external table Storage ifexists");
+                $".drop external table {externalTableName} ifexists");
             await commandProvider.ExecuteControlCommandAsync(
                 adxDatabase,
                 @$".create external table {externalTableName}
@@ -141,7 +173,7 @@ dataformat=parquet
             table.Load(result);
             Console.WriteLine($"Query warm:  {watch.Elapsed}");
 
-            foreach(var row in table.Rows.Cast<DataRow>())
+            foreach (var row in table.Rows.Cast<DataRow>())
             {
                 Console.WriteLine(string.Join(' ', row.ItemArray));
             }
@@ -167,10 +199,9 @@ dataformat=parquet
             {
                 InputTextConfiguration = new BlobQueryParquetTextOptions()
             };
-            var elapsedRetrieveBlobs = watch.Elapsed;
 
-            Console.WriteLine($"Blob retrieval:  {elapsedRetrieveBlobs}");
             Console.WriteLine($"# of blobs:  {nonEmptyBlobClients.Count()}");
+            Console.WriteLine($"Blob retrieval:  {watch.Elapsed}");
             options.ErrorHandler += (BlobQueryError err) =>
             {
                 Console.ForegroundColor = ConsoleColor.Red;
@@ -195,11 +226,9 @@ dataformat=parquet
             }).ToImmutableArray();
 
             await Task.WhenAll(queryTasks);
+            Console.WriteLine($"Query:  {watch.Elapsed}");
 
-            var elapsedQuery = watch.Elapsed;
             var values = queryTasks.Select(t => (IEnumerable<RESULT>)t.Result).ToImmutableArray();
-
-            Console.WriteLine($"Query:  {elapsedQuery}");
 
             return values;
         }
