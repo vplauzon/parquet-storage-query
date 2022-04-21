@@ -2,10 +2,12 @@
 {
     public enum QueryType
     {
+        Distinct,
         PointFilter,
-        TimeFilter,
         MaxBy,
+        MinMax,
         FilterCount,
+        TimeFilterCount,
         TotalCount
     }
 }

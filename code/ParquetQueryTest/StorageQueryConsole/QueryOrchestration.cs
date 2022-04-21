@@ -18,10 +18,62 @@ namespace StorageQueryConsole
     internal class QueryOrchestration
     {
         #region Inner Types
+        private class Log
+        {
+            [Index(0)]
+            public DateTime Timestamp { get; set; }
+
+            [Index(1)]
+            public string Instance { get; set; } = "";
+
+            [Index(2)]
+            public string Node { get; set; } = "";
+
+            [Index(3)]
+            public string Level { get; set; } = "";
+
+            [Index(4)]
+            public string Component { get; set; } = "";
+
+            [Index(5)]
+            public string EventId { get; set; } = "";
+
+            [Index(6)]
+            public string Detail { get; set; } = "";
+        }
+
         private class CountResult
         {
             [Index(0)]
             public long Count { get; set; }
+        }
+
+        private class MinMaxResult<T>
+            where T : struct
+        {
+            [Index(0)]
+            public T Min { get; set; }
+
+            [Index(1)]
+            public T Max { get; set; }
+        }
+
+        private class MaxByResult
+        {
+            [Index(0)]
+            public DateTime Max { get; set; }
+
+            [Index(1)]
+            public string? By { get; set; }
+        }
+
+        private class CountByResult
+        {
+            [Index(0)]
+            public long Count { get; set; }
+
+            [Index(1)]
+            public string? By { get; set; }
         }
         #endregion
 
@@ -74,10 +126,225 @@ namespace StorageQueryConsole
                             queryNode.DataFolderUri);
 
                         return;
+                    case QueryType.TimeFilterCount:
+                        await QueryTimeFilterCountAsync(
+                            storageCredential,
+                            commandProvider,
+                            queryProvider,
+                            adxDatabase,
+                            queryNode.DataFolderUri);
+
+                        return;
+                    case QueryType.FilterCount:
+                        await QueryFilterCountAsync(
+                            storageCredential,
+                            commandProvider,
+                            queryProvider,
+                            adxDatabase,
+                            queryNode.DataFolderUri);
+
+                        return;
+                    case QueryType.MinMax:
+                        await QueryMinMaxAsync(
+                            storageCredential,
+                            commandProvider,
+                            queryProvider,
+                            adxDatabase,
+                            queryNode.DataFolderUri);
+
+                        return;
+                    case QueryType.MaxBy:
+                        await QueryMaxByAsync(
+                            storageCredential,
+                            commandProvider,
+                            queryProvider,
+                            adxDatabase,
+                            queryNode.DataFolderUri);
+
+                        return;
+                    case QueryType.PointFilter:
+                        await QueryPointFilterAsync(
+                            storageCredential,
+                            commandProvider,
+                            queryProvider,
+                            adxDatabase,
+                            queryNode.DataFolderUri);
+
+                        return;
+                    case QueryType.Distinct:
+                        await QueryDistinctAsync(
+                            storageCredential,
+                            commandProvider,
+                            queryProvider,
+                            adxDatabase,
+                            queryNode.DataFolderUri);
+
+                        return;
                     default:
                         throw new NotSupportedException($"Query type '{queryNode.QueryType}'");
                 }
             }
+        }
+
+        private static async Task QueryDistinctAsync(
+            TokenCredential storageCredential,
+            ICslAdminProvider commandProvider,
+            ICslQueryProvider queryProvider,
+            string adxDatabase,
+            Uri dataFolderUri)
+        {
+            await QueryBothSystemsAsync<CountByResult>(
+                storageCredential,
+                commandProvider,
+                queryProvider,
+                adxDatabase,
+                dataFolderUri,
+                "SELECT 'Instance', COUNT(*) FROM BlobStorage GROUP BY 'Instance'",
+                results =>
+                {
+                    var distinctValues = results
+                    .SelectMany(i => i)
+                    .Select(r => r.By)
+                    .Distinct();
+
+                    Console.WriteLine("Distinct Instance by storage query:");
+                    foreach (var e in distinctValues)
+                    {
+                        Console.WriteLine(e);
+                    }
+                },
+                "distinct Instance");
+        }
+
+        private static async Task QueryPointFilterAsync(
+            TokenCredential storageCredential,
+            ICslAdminProvider commandProvider,
+            ICslQueryProvider queryProvider,
+            string adxDatabase,
+            Uri dataFolderUri)
+        {
+            await QueryBothSystemsAsync<Log>(
+                storageCredential,
+                commandProvider,
+                queryProvider,
+                adxDatabase,
+                dataFolderUri,
+                "SELECT * FROM BlobStorage WHERE 'EventId'=\"c2275e14-2311-9296-894f-9567a0426fcc\"",
+                results =>
+                {
+                    var rows = results.SelectMany(i => i);
+
+                    Console.WriteLine($"Point filter by storage query:  {rows.Count()} results");
+                    foreach (var r in rows)
+                    {
+                        Console.WriteLine($"{r.Timestamp} {r.Instance} {r.Node} {r.Level} {r.Component} {r.EventId} {r.Detail}");
+                    }
+                },
+                "where EventId=='c2275e14-2311-9296-894f-9567a0426fcc'");
+        }
+
+        private static async Task QueryMaxByAsync(
+            TokenCredential storageCredential,
+            ICslAdminProvider commandProvider,
+            ICslQueryProvider queryProvider,
+            string adxDatabase,
+            Uri dataFolderUri)
+        {
+            await QueryBothSystemsAsync<MaxByResult>(
+                storageCredential,
+                commandProvider,
+                queryProvider,
+                adxDatabase,
+                dataFolderUri,
+                "SELECT Max('Timestamp'), 'Level' FROM BlobStorage GROUP BY 'Level'",
+                results =>
+                {
+                    var maxByValues = results
+                    .SelectMany(i => i)
+                    .GroupBy(r => r.By)
+                    .Select(g => new MaxByResult
+                    {
+                        Max = g.Max(e => e.Max),
+                        By = g.Key
+                    });
+
+                    Console.WriteLine("Max Timestamp by Level by storage query:");
+                    foreach (var e in maxByValues)
+                    {
+                        Console.WriteLine($"{e.Max} / {e.By}");
+                    }
+                },
+                "summarize max(Timestamp) by Level");
+        }
+
+        private static async Task QueryMinMaxAsync(
+            TokenCredential storageCredential,
+            ICslAdminProvider commandProvider,
+            ICslQueryProvider queryProvider,
+            string adxDatabase,
+            Uri dataFolderUri)
+        {
+            await QueryBothSystemsAsync<MinMaxResult<DateTime>>(
+                storageCredential,
+                commandProvider,
+                queryProvider,
+                adxDatabase,
+                dataFolderUri,
+                "SELECT Min('Timestamp'), Max('Timestamp') FROM BlobStorage",
+                results =>
+                {
+                    var minValue = results.SelectMany(i => i).Min(r => r.Min);
+                    var maxValue = results.SelectMany(i => i).Max(r => r.Max);
+
+                    Console.WriteLine($"Min-Max Timestamp by storage query:  {minValue} / {maxValue}");
+                },
+                "summarize min(Timestamp), max(Timestamp)");
+        }
+
+        private static async Task QueryFilterCountAsync(
+            TokenCredential storageCredential,
+            ICslAdminProvider commandProvider,
+            ICslQueryProvider queryProvider,
+            string adxDatabase,
+            Uri dataFolderUri)
+        {
+            await QueryBothSystemsAsync<CountResult>(
+                storageCredential,
+                commandProvider,
+                queryProvider,
+                adxDatabase,
+                dataFolderUri,
+                "SELECT COUNT(*) FROM BlobStorage WHERE 'Level'='Warning'",
+                results =>
+                {
+                    var count = results.SelectMany(i => i).Select(r => r.Count).Sum();
+
+                    Console.WriteLine($"Count by storage query:  {count}");
+                },
+                "where Level=='Warning'| count");
+        }
+
+        private static async Task QueryTimeFilterCountAsync(
+            TokenCredential storageCredential,
+            ICslAdminProvider commandProvider,
+            ICslQueryProvider queryProvider,
+            string adxDatabase,
+            Uri dataFolderUri)
+        {
+            await QueryBothSystemsAsync<CountResult>(
+                storageCredential,
+                commandProvider,
+                queryProvider,
+                adxDatabase,
+                dataFolderUri,
+                "SELECT COUNT(1) FROM BlobStorage WHERE 'Timestamp'>TO_TIMESTAMP('2014-03-08 04:00:00')",
+                results =>
+                {
+                    var count = results.SelectMany(i => i).Select(r => r.Count).Sum();
+
+                    Console.WriteLine($"Count by storage query:  {count}");
+                },
+                "where Timestamp>datetime(2014-03-08T04:00:00)| count");
         }
 
         private static async Task QueryTotalCountAsync(
@@ -100,7 +367,7 @@ namespace StorageQueryConsole
 
                     Console.WriteLine($"Count by storage query:  {count}");
                 },
-                "summarize count()");
+                "count");
         }
 
         private static async Task QueryBothSystemsAsync<RESULT>(
