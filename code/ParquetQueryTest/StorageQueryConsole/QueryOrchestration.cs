@@ -229,7 +229,8 @@ namespace StorageQueryConsole
                 queryProvider,
                 adxDatabase,
                 dataFolderUri,
-                "SELECT * FROM BlobStorage WHERE 'EventId'=\"c2275e14-2311-9296-894f-9567a0426fcc\"",
+                //"SELECT * FROM BlobStorage WHERE _6=\"c2275e14-2311-9296-894f-9567a0426fcc\"",
+                "SELECT * FROM BlobStorage WHERE 'EventId'='c2275e14-2311-9296-894f-9567a0426fcc'",
                 results =>
                 {
                     var rows = results.SelectMany(i => i);
@@ -337,7 +338,7 @@ namespace StorageQueryConsole
                 queryProvider,
                 adxDatabase,
                 dataFolderUri,
-                "SELECT COUNT(1) FROM BlobStorage WHERE 'Timestamp'>TO_TIMESTAMP('2014-03-08 04:00:00')",
+                "SELECT COUNT(1) FROM BlobStorage WHERE 'Timestamp'>TO_TIMESTAMP('2014-03-08T04:00:00.00Z')",
                 results =>
                 {
                     var count = results.SelectMany(i => i).Select(r => r.Count).Sum();
