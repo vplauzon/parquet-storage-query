@@ -436,7 +436,7 @@ dataformat=parquet
             table.Load(result);
             Console.WriteLine($"Query warm:  {watch.Elapsed}");
 
-            foreach (var row in table.Rows.Cast<DataRow>())
+            foreach (var row in table.Rows.Cast<DataRow>().Take(5))
             {
                 Console.WriteLine(string.Join(' ', row.ItemArray));
             }
