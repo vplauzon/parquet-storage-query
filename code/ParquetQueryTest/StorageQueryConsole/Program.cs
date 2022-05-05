@@ -26,9 +26,10 @@ namespace StorageQueryConsole
                 var config = await LoadConfigAsync(args);
                 var builder = GetKustoConnectionStringBuilder(
                     config.AdxClusterUri,
-                    config.AuthenticationMode);
+                    config.AuthenticationMode,
+                    config.AppDetails);
                 var kustoCommandProvider = KustoClientFactory.CreateCslCmAdminProvider(builder);
-                var storageCredential = GetStorageCredentials(config.AuthenticationMode);
+                var storageCredential = GetStorageCredentials(config.AuthenticationMode, config.AppDetails);
 
                 await DataPreparationOrchestration.RunAsync(kustoCommandProvider, storageCredential, config);
                 await QueryOrchestration.RunAsync(kustoCommandProvider, storageCredential, config);
@@ -49,7 +50,8 @@ namespace StorageQueryConsole
 
         private static KustoConnectionStringBuilder GetKustoConnectionStringBuilder(
             Uri adxClusterUri,
-            AuthenticationMode authenticationMode)
+            AuthenticationMode authenticationMode,
+            AppDetail appDetails)
         {
             var builder = new KustoConnectionStringBuilder(adxClusterUri.ToString());
 
@@ -59,6 +61,11 @@ namespace StorageQueryConsole
                     return builder.WithAadAzCliAuthentication();
                 case AuthenticationMode.Browser:
                     return builder.WithAadUserPromptAuthentication();
+                case AuthenticationMode.AppSecret:
+                    return builder.WithAadApplicationKeyAuthentication(
+                        appDetails.AppId,
+                        appDetails.Secret,
+                        appDetails.TenantId);
 
                 default:
                     throw new NotSupportedException(
@@ -66,7 +73,7 @@ namespace StorageQueryConsole
             }
         }
 
-        private static TokenCredential GetStorageCredentials(AuthenticationMode authenticationMode)
+        private static TokenCredential GetStorageCredentials(AuthenticationMode authenticationMode, AppDetail appDetails)
         {
             switch (authenticationMode)
             {
@@ -77,6 +84,11 @@ namespace StorageQueryConsole
                     {
                         TokenCachePersistenceOptions = new TokenCachePersistenceOptions()
                     });
+                case AuthenticationMode.AppSecret:
+                    return new ClientSecretCredential(
+                        appDetails.TenantId,
+                        appDetails.AppId,
+                        appDetails.Secret);
 
                 default:
                     throw new NotSupportedException(

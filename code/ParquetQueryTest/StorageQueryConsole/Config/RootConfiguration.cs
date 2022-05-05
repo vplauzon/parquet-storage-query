@@ -10,6 +10,8 @@ namespace StorageQueryConsole.Config
     internal class RootConfiguration
     {
         public AuthenticationMode AuthenticationMode { get; set; } = AuthenticationMode.AzCli;
+        
+        public AppDetail AppDetails { get; set; } = new AppDetail();
 
         public Uri AdxClusterUri { get; set; } = new Uri("https://Undefined");
 

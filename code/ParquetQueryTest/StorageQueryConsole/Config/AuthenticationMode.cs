@@ -3,6 +3,7 @@
     public enum AuthenticationMode
     {
         Browser,
-        AzCli
+        AzCli,
+        AppSecret
     }
 }
