@@ -21,7 +21,7 @@ namespace StorageQueryConsole
         private class Log
         {
             [Index(0)]
-            public DateTime Timestamp { get; set; }
+            public string Timestamp { get; set; } = "";
 
             [Index(1)]
             public string Instance { get; set; } = "";
@@ -229,19 +229,14 @@ namespace StorageQueryConsole
                 queryProvider,
                 adxDatabase,
                 dataFolderUri,
-                //"SELECT * FROM BlobStorage WHERE _6=\"c2275e14-2311-9296-894f-9567a0426fcc\"",
-                "SELECT * FROM BlobStorage WHERE 'EventId'='c2275e14-2311-9296-894f-9567a0426fcc'",
+                "SELECT * FROM BlobStorage WHERE EventId='a7759f78-b8f8-e9e8-9cfc-f27c0e408264'",
                 results =>
                 {
                     var rows = results.SelectMany(i => i);
 
                     Console.WriteLine($"Point filter by storage query:  {rows.Count()} results");
-                    foreach (var r in rows)
-                    {
-                        Console.WriteLine($"{r.Timestamp} {r.Instance} {r.Node} {r.Level} {r.Component} {r.EventId} {r.Detail}");
-                    }
                 },
-                "where EventId=='c2275e14-2311-9296-894f-9567a0426fcc'");
+                "where EventId=='a7759f78-b8f8-e9e8-9cfc-f27c0e408264'");
         }
 
         private static async Task QueryMaxByAsync(
