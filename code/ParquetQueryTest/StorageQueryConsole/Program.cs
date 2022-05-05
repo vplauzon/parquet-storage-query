@@ -29,10 +29,15 @@ namespace StorageQueryConsole
                     config.AuthenticationMode,
                     config.AppDetails);
                 var kustoCommandProvider = KustoClientFactory.CreateCslCmAdminProvider(builder);
+                var kustoQueryProvider = KustoClientFactory.CreateCslQueryProvider(builder);
                 var storageCredential = GetStorageCredentials(config.AuthenticationMode, config.AppDetails);
 
                 await DataPreparationOrchestration.RunAsync(kustoCommandProvider, storageCredential, config);
-                await QueryOrchestration.RunAsync(kustoCommandProvider, storageCredential, config);
+                await QueryOrchestration.RunAsync(
+                    kustoCommandProvider,
+                    kustoQueryProvider,
+                    storageCredential,
+                    config);
             }
         }
 

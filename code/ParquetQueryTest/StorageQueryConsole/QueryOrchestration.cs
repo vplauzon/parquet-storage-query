@@ -79,6 +79,7 @@ namespace StorageQueryConsole
 
         internal static async Task RunAsync(
             ICslAdminProvider kustoCommandProvider,
+            ICslQueryProvider kustoQueryProvider,
             TokenCredential storageCredential,
             RootConfiguration config)
         {
@@ -93,6 +94,8 @@ namespace StorageQueryConsole
                     {
                         await RunAsync(
                             storageCredential,
+                            kustoCommandProvider,
+                            kustoQueryProvider,
                             config.AdxClusterUri,
                             config.AdxDatabase,
                             queryNode);
@@ -103,25 +106,22 @@ namespace StorageQueryConsole
 
         private static async Task RunAsync(
             TokenCredential storageCredential,
+            ICslAdminProvider kustoCommandProvider,
+            ICslQueryProvider kustoQueryProvider,
             Uri adxClusterUri,
             string adxDatabase,
             QueryConfiguration queryNode)
         {
             if (queryNode.DataFolderUri != null)
             {
-                var builder = new KustoConnectionStringBuilder(adxClusterUri.ToString())
-                    .WithAadUserPromptAuthentication();
-                var commandProvider = KustoClientFactory.CreateCslCmAdminProvider(builder);
-                var queryProvider = KustoClientFactory.CreateCslQueryProvider(builder);
-
                 //  From https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-query-acceleration-how-to
                 switch (queryNode.QueryType)
                 {
                     case QueryType.TotalCount:
                         await QueryTotalCountAsync(
                             storageCredential,
-                            commandProvider,
-                            queryProvider,
+                            kustoCommandProvider,
+                            kustoQueryProvider,
                             adxDatabase,
                             queryNode.DataFolderUri);
 
@@ -129,8 +129,8 @@ namespace StorageQueryConsole
                     case QueryType.TimeFilterCount:
                         await QueryTimeFilterCountAsync(
                             storageCredential,
-                            commandProvider,
-                            queryProvider,
+                            kustoCommandProvider,
+                            kustoQueryProvider,
                             adxDatabase,
                             queryNode.DataFolderUri);
 
@@ -138,8 +138,8 @@ namespace StorageQueryConsole
                     case QueryType.FilterCount:
                         await QueryFilterCountAsync(
                             storageCredential,
-                            commandProvider,
-                            queryProvider,
+                            kustoCommandProvider,
+                            kustoQueryProvider,
                             adxDatabase,
                             queryNode.DataFolderUri);
 
@@ -147,8 +147,8 @@ namespace StorageQueryConsole
                     case QueryType.MinMax:
                         await QueryMinMaxAsync(
                             storageCredential,
-                            commandProvider,
-                            queryProvider,
+                            kustoCommandProvider,
+                            kustoQueryProvider,
                             adxDatabase,
                             queryNode.DataFolderUri);
 
@@ -156,8 +156,8 @@ namespace StorageQueryConsole
                     case QueryType.MaxBy:
                         await QueryMaxByAsync(
                             storageCredential,
-                            commandProvider,
-                            queryProvider,
+                            kustoCommandProvider,
+                            kustoQueryProvider,
                             adxDatabase,
                             queryNode.DataFolderUri);
 
@@ -165,8 +165,8 @@ namespace StorageQueryConsole
                     case QueryType.PointFilter:
                         await QueryPointFilterAsync(
                             storageCredential,
-                            commandProvider,
-                            queryProvider,
+                            kustoCommandProvider,
+                            kustoQueryProvider,
                             adxDatabase,
                             queryNode.DataFolderUri);
 
@@ -174,8 +174,8 @@ namespace StorageQueryConsole
                     case QueryType.Distinct:
                         await QueryDistinctAsync(
                             storageCredential,
-                            commandProvider,
-                            queryProvider,
+                            kustoCommandProvider,
+                            kustoQueryProvider,
                             adxDatabase,
                             queryNode.DataFolderUri);
 
