@@ -310,7 +310,9 @@ namespace StorageQueryConsole
                 queryProvider,
                 adxDatabase,
                 dataFolderUri,
-                "SELECT COUNT(*) FROM BlobStorage WHERE 'Level'='Warning'",
+                //"SELECT COUNT(*) FROM BlobStorage WHERE 'Level'='Warning'",
+                //  Temporary fix since Level is a reserved word
+                "SELECT COUNT(*) FROM BlobStorage WHERE _4='Warning'",
                 results =>
                 {
                     var count = results.SelectMany(i => i).Select(r => r.Count).Sum();
